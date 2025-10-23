@@ -1,0 +1,8 @@
+
+*/__pycache__
+*/dataset/*
+*.pt
+*.pth
+*.xlsx
+*.eps
+*/yolo11
