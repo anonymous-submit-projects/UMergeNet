@@ -41,7 +41,7 @@ class EarlyStopping:
             self.sign = -1
 
     def step(self, score):
-        score = self.sign * score  # transforma max em min se necessário
+        score = self.sign * score  # transform max into min if necessary
 
         if self.best_score is None:
             self.best_score = score
@@ -68,7 +68,7 @@ def compute_segmentation_metrics(preds, targets, num_classes, eps=1e-6):
     recall_per_class    = []
     f1_per_class        = []
 
-    # Se for binário, avaliamos apenas a classe 1
+    # If it is binary, we only evaluate class 1
     classes_to_eval = [1] if num_classes == 1 else range(num_classes)
 
     for cls in classes_to_eval:
@@ -85,7 +85,7 @@ def compute_segmentation_metrics(preds, targets, num_classes, eps=1e-6):
             dice = (2.0 * intersection + eps) / (union + eps)
             dice_total += dice.item()
 
-        # IoU
+        # Io u
         union_iou = (pred_mask | target_mask).sum().float()
         if union_iou > 0:
             iou = (intersection + eps) / (union_iou + eps)
@@ -116,9 +116,9 @@ def compute_segmentation_metrics(preds, targets, num_classes, eps=1e-6):
     return mean_dice, mean_iou, mean_precision, mean_recall, mean_f1, q
 
 
-# faz o cálculo imagem por imagem e depois tira a média.
+# It calculates image by image and then takes the average.
 def compute_iou(preds, masks, num_classes=1, eps=1e-6):
-    iou_per_class = [ [] for _ in range(num_classes) ]  # lista de listas
+    iou_per_class = [ [] for _ in range(num_classes) ]  # list of lists
 
     batch_size = preds.size(0)
 
@@ -131,14 +131,14 @@ def compute_iou(preds, masks, num_classes=1, eps=1e-6):
             mask_cls = (mask == cls).float()
 
             if mask_cls.sum() == 0:
-                continue  # não avalia classe ausente no ground truth
+                continue  # does not evaluate missing class in ground truth
 
             intersection = (pred_cls * mask_cls).sum()
             union = ((pred_cls + mask_cls) > 0).float().sum()
             iou = (intersection + eps) / (union + eps)
             iou_per_class[cls].append(iou)
 
-    # média por classe
+    # average per class
     class_ious = [
         torch.stack(iou_list).mean()
         for iou_list in iou_per_class
@@ -161,13 +161,13 @@ class BCEDiceLoss(nn.Module):
         self.smooth = smooth
 
     def forward(self, inputs, targets):
-        # BCE (com logits)
+        # ECB (with logits)
         bce_loss = self.bce(inputs, targets)
 
-        # Sigmoid para converter logits → probabilidades
+        # Sigmoid to convert logits → probabilities
         probs = torch.sigmoid(inputs)
 
-        # Flatten para cálculo do Dice
+        # Flatten for Dice calculation
         probs = probs.view(-1)
         targets = targets.view(-1)
 
@@ -175,7 +175,7 @@ class BCEDiceLoss(nn.Module):
         dice = (2. * intersection + self.smooth) / (probs.sum() + targets.sum() + self.smooth)
         dice_loss = 1 - dice
 
-        # Combinação ponderada
+        # Thoughtful combination
         loss = self.bce_weight * bce_loss + (1 - self.bce_weight) * dice_loss
         return loss
 
@@ -192,8 +192,8 @@ class Trainer:
     scheduler     = None
     learning_rate = None
 
-    #Essa classe treina apenas segmentacao com 1 classe
-    #Se necessario mais, usar SemanticTrainer
+    #This class only trains segmentation with 1 class
+    #If more is needed, use SemanticTrainer
     num_classes   = 2
 
     def __init__(self, model_filename=None, model_dir=None, info={}, save_xlsx=False, load_best=True, device=None, rewrite_model=False, 
@@ -201,18 +201,18 @@ class Trainer:
 
         if save_xlsx:
             if model_filename is None:
-                raise Exception("model_filename é obrigatório ao com save_xlsx == True")
+                raise Exception("model_filename is mandatory when with save_xlsx == True")
         self.save_xlsx = save_xlsx
         self.load_best = load_best
         self.loss_function = loss_function
 
-        #salva o nome e diretorio do modelo
+        #saves the model name and directory
         self.model_filename = model_filename
         if model_dir is None:
             model_dir = model_filename
         self.model_dir = model_dir
 
-        #se pelo menos o nome do modelo for passado
+        #if at least the model name is passed
         if self.model_filename is not None:
             self.model_file_dir = self.model_dir + "/" + self.model_filename
             self.hist_name = self.model_file_dir.replace('.pth', '.xlsx')
@@ -231,12 +231,12 @@ class Trainer:
             if os.path.exists(self.last_path):
                 os.remove(self.last_path)
 
-        #informacoes extra a serem salvas no xslx
+        #extra information to be saved in xlsx
         self.info = info
-        #index da imagem sample que sera usada
-        #para salvar o output durante o treino
+        #index of the sample image that will be used
+        #to save output during training
         self.sample_img_fixed_index = 0
-        #Faz algumas inicializacoes
+        #Makes some initializations
         self.create_criterion()
 
         if device is None:
@@ -252,7 +252,7 @@ class Trainer:
             self.criterion = nn.BCEWithLogitsLoss()
         elif self.loss_function == 'BCEDiceLoss':
             self.criterion = BCEDiceLoss(bce_weight=0.5)
-        #elif self.loss_function == 'BCEDiceLossMulticlass':  #Ainda nao disponível aqui
+        #elif self.loss_function == 'BCEDiceLossMulticlass': #Not yet available here
         #    self.criterion = BCEDiceLossMulticlass(bce_weight=0.5)
         else:
             raise ValueError(f'Loss function {self.loss_function} not found.')
@@ -306,7 +306,7 @@ class Trainer:
         if miou is not None:
             history["miou"].append(miou)
         if f1 is not None:
-            history["f1"].append(miou)
+            history["f1"].append(f1)
         if iou is not None:
             history["iou"].append(iou)
         if precision is not None:
@@ -353,13 +353,13 @@ class Trainer:
                     line += f" CPU_FPS: {cpu_fps:.2f}"
                 return line
 
-            # melhor época (maior Dice)
+            # best time (highest Dice)
             best_epoch = int(max(range(len(self.val_history["dice"])), key=lambda i: self.val_history["dice"][i]))
-            print(format_line("Melhor modelo", best_epoch))
+            print(format_line("Best model", best_epoch))
 
-            # última época
+            # last season
             last_epoch = len(self.val_history["dice"]) - 1
-            print(format_line("Ultimo modelo", last_epoch))
+            print(format_line("Latest model", last_epoch))
 
 
     def do_save_xlsx(self):
@@ -388,14 +388,14 @@ class Trainer:
 
             chart = workbook.add_chart({'type': 'line'})
 
-            # A coluna 'epoch' agora está na coluna 0
-            # Supondo que 'val_dice' esteja na coluna 5 e 'val_IoU' na 6 (ou ajuste isso dinamicamente)
+            # The 'epoch' column is now in column 0
+            # Assuming 'val_dice' is in column 5 and 'val_IoU' in 6 (or adjust this dynamically)
             col_dice = df_val_history.columns.get_loc('dice')
             col_iou  = df_val_history.columns.get_loc('miou')
 
             chart.add_series({
                 'name':       'dice',
-                'categories': ['val_history', 1, 0, len(df_val_history), 0],  # coluna 0 = epoch
+                'categories': ['val_history', 1, 0, len(df_val_history), 0],  # column 0 = epoch
                 'values':     ['val_history', 1, col_dice, len(df_val_history), col_dice],
             })
             chart.add_series({
@@ -404,24 +404,24 @@ class Trainer:
                 'values':     ['val_history', 1, col_iou, len(df_val_history), col_iou],
             })
 
-            chart.set_title({'name': 'Treinamento'})
+            chart.set_title({'name': 'Training'})
 
             chart.set_x_axis({
-                'name': 'Época',
+                'name': 'Epoch',
                 'interval_unit': 10,
                 'num_font': {'rotation': -45},
             })
-            chart.set_y_axis({'name': 'Valor'})
+            chart.set_y_axis({'name': 'Value'})
 
             worksheet.insert_chart('K2', chart)
 
 
 
     def load_xlsx_history(self):
-        # Lê todas as planilhas do arquivo
+        # Read all sheets in the file
         xls = pd.read_excel(self.hist_name, sheet_name=None)
 
-        # Recupera o DataFrame de histórico e converte para lista de dicionários
+        # Retrieves the history DataFrame and converts it to a dictionary list
         df_val_history   = xls['val_history']
         last_epoch   = int(df_val_history['epoch'].iloc[-1])
         self.val_history = df_val_history.drop(columns=['epoch']).to_dict(orient='list')
@@ -430,34 +430,34 @@ class Trainer:
         df_test_history   = xls['test_history']
         self.test_history = df_test_history.drop(columns=['epoch']).to_dict(orient='list')
 
-        # Tempo acumulado
+        # Accumulated time
         elapsed_str      = df_val_history['elapsed_time'].iloc[-1]
         h, m, s          = map(int, elapsed_str.split(':'))
         accumulated_time = timedelta(hours=h, minutes=m, seconds=s).total_seconds()
-        start_time       = time.time() - accumulated_time  # Ajusta para manter contagem acumulada
+        start_time       = time.time() - accumulated_time  # Adjusts to maintain accumulated count
 
-        # Recupera o DataFrame de informações do modelo e converte para dicionário
+        # Retrieves model information DataFrame and converts to dictionary
         df_info = xls['model_info']
         self.info = df_info.iloc[0].to_dict()
         return last_epoch, start_time
 
     def load_model(self, model_file_dir, model=None, load_xlsx=True, load_scheduler=False):
-        #se o modelo for passado
+        #if the model is passed
         if model is not None:
-            #self.model recebe o novo modelo
+            #self.model receives the new model
             self.model = model
-        #se o modelo a ser carregado nao foi passado
+        #if the model to be loaded has not been passed
         if self.model is None:
-            raise Exception("Voce precisa passar o objeto do modelo no parametro 'model'")
+            raise Exception("You need to pass the model object in the 'model' parameter")
 
         if self.optimizer is None:
             self.create_optimizer()
         if self.scheduler is None:
             self.create_scheduler()
 
-        #carrega o modelo do arquivo .pth
+        #loads the model from the .pth file
         checkpoint = torch.load(model_file_dir, weights_only=False)
-        #recupera os states do arquivo
+        #retrieves the states of the file
         self.model.load_state_dict(checkpoint['model_state_dict'])
         self.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
         if load_scheduler:
@@ -465,7 +465,7 @@ class Trainer:
         best_score  = checkpoint['best_acc']
         epoch       = checkpoint['epoch'] + 1
         self.model.to(self.get_device())
-        print(f"Modelo carregado: {model_file_dir}")
+        print(f"Loaded model: {model_file_dir}")
         if load_xlsx:
             start_epoch, start_time = self.load_xlsx_history()
             return best_score, epoch, start_epoch, start_time
@@ -493,12 +493,12 @@ class Trainer:
         loss        = self.criterion(outputs, masks)
         val_loss    = loss.item() * images.size(0)
 
-        #faz o threshold
+        #make the threshold
         preds = torch.sigmoid(outputs)
         preds = (preds > 0.5).long()
         masks = masks.long()
 
-        #computa as metricas
+        #compute the metrics
         dice, mIoU, precision, recall, f1, q = compute_segmentation_metrics(preds, masks, num_classes=self.num_classes)
         IoU = compute_iou(preds, masks, num_classes=self.num_classes)
         val_dice      = dice      * images.size(0)
@@ -563,18 +563,18 @@ class Trainer:
                     val_loader,
                     test_loader, 
                     num_epochs=50, 
-                    #salva o modelo a cada
+                    #saves the model every
                     save_every=None,
-                    #imprime o andamento a cada
+                    #prints the tempo every
                     print_every=None,
-                    #continua o treinamento de onde parou
+                    #continue training where you left off
                     continue_from_last=False,
-                    #verbose==1 imprime o treinamento na mesma linha
+                    #verbose==1 prints the training on the same line
                     verbose=3,
                     learning_rate=1e-4,
-                    # scheduler_patience=diminui o LR após 10 epocas sem melhoria na acc
+                    # scheduler patience=decreases IR after 10 epochs without improvement in acc
                     scheduler_patience=10,
-                    # early_stop_patience=encerra o treinamento após 20 epocas se melhoria de acc
+                    # early_stop_patience=ends training after 20 epochs if acc improves
                     early_stop_patience=20,
                     measure_cpu_speed=True
                     ):
@@ -617,7 +617,7 @@ class Trainer:
         self.test_history = {k: [] for k in self.val_history}
 
 
-        #imprime tudo na mesma linha
+        #prints everything on the same line
         tqdm_disable = print_every!=None
         print_end    = '\r\n'
         if verbose == 1:
@@ -626,29 +626,29 @@ class Trainer:
 
 
 
-        #se o nome do modelo foi passado
+        #if the model name was passed
         if self.model_filename is not None:
-            #cria os diretorios
+            #create directories
             os.makedirs(self.model_dir, exist_ok=True)
 
-            #primeiro, verifica se o modelo final, treinado ja existe
+            #First, it checks whether the final, trained model already exists
             if os.path.exists(self.model_file_dir):
                 if self.load_best:
-                    #se ja existir, carrega e retorna
-                    print("Modelo treinado já existe (Carregando melhor versão).")
+                    #if it already exists, load and return
+                    print("Trained model already exists (Loading better version).")
                     self.load_model(self.best_path)
                 else:
-                    #se ja existir, carrega e retorna
-                    print("Modelo treinado já existe (Carregando última versão).")
+                    #if it already exists, load and return
+                    print("Trained model already exists (Loading latest version).")
                     self.load_model(self.model_file_dir)
                 self.print_last_history_stats()
                 return model
-            #se nao existir e for uma continuacao do treinamento
+            #if it does not exist and is a continuation of the training
             elif continue_from_last == True:
-                #continua a partir do -last
+                #continues from -last
                 if os.path.exists(self.last_path):
                     _, _, start_epoch, start_time = self.load_model(self.last_path)
-                    print(f"Continuando do modelo salvo: {self.last_path}")
+                    print(f"Continuing from the saved model: {self.last_path}")
                     print(f"start_epoch: {start_epoch}, start_time: {start_time}")
                     if start_epoch >= num_epochs:
                         self.print_last_history_stats()
@@ -663,26 +663,26 @@ class Trainer:
 
 
 
-        ## Treinamento
+        ## Training
         epoch = start_epoch
         for epoch in range(start_epoch, num_epochs):
 
             model.train()
             train_loss = 0.0
-            for images, masks in tqdm(train_loader, desc=f"Treinando Epoch {epoch+1}", disable=tqdm_disable):
+            for images, masks in tqdm(train_loader, desc=f"Training Epoch {epoch+1}", disable=tqdm_disable):
                 images = images.to(device)
                 masks  = masks.to(device)
-                ## loop de treino
+                ## training loop
                 train_loss += self.train_loop(images, masks, epoch)
 
             avg_train_loss = train_loss / len(train_loader.dataset)
 
 
-            ## Validação
+            ## Validation
             avg_val_loss, avg_val_dice, avg_val_mIoU, avg_val_IoU, avg_val_precision, avg_val_recall, avg_val_f1, avg_val_q = self.evaluate_model(val_loader)
 
 
-            ## Test
+            ##Test
             avg_test_loss, avg_test_dice, avg_test_mIoU, avg_test_IoU, avg_test_precision, avg_test_recall, avg_test_f1, avg_test_q = self.evaluate_model(test_loader)
 
             elapsed     = time.time() - start_time
@@ -705,7 +705,7 @@ class Trainer:
 
             images_per_sec = (len(train_loader) * batch_size) / elapsed
 
-            ## Salva a evolucao da rede
+            ## Saves the evolution of the network
             self.update_history(
                 self.val_history,
                 train_loss=avg_train_loss,
@@ -743,23 +743,23 @@ class Trainer:
             started = True
 
 
-            # O avg_val_dice será observado para o scheduler e early_stopper
+            # The avg_val_dice will be observed for the scheduler and early_stopper
 
-            # reduz o learning rate caso o score nao melhore
+            # reduces the learning rate if the score does not improve
             self.scheduler.step(avg_val_dice)
 
-            # para o treinamento caso nao melhore em X epocas
+            # for training if you don't improve in X times
             early_stopper.step(avg_val_dice)
             if early_stopper.early_stop:
-                print(f"Parando na época {epoch+1} por early stopping.")
+                print(f"Stopping at epoch {epoch+1} by early stopping.")
                 break
 
-            ## Salva o melhor modelo ate o momento
+            ## Save the best model so far
             if avg_val_dice > best_score:
                 best_score = avg_val_dice
 
                 if self.model_file_dir is not None:
-                    #salva o modelo na melhor epoca
+                    #save the model at the best time
                     self.save_model(self.best_path, epoch, best_score)
                     current_lr  = self.optimizer.param_groups[0]['lr']
                     best_stats = (f"Epoch [{epoch+1}/{num_epochs}] - " 
@@ -769,14 +769,14 @@ class Trainer:
                                 f"Recall: {avg_val_recall:.4f} Q: {avg_val_q:.4f} " 
                                 f"Time: {elapsed_str} LR:{current_lr:.6f}")
                     if print_every is None and verbose > 1:
-                        print("✔ Melhor modelo salvo:", best_stats, end=print_end)
-                    #salva o excel ate o momento atual
+                        print("✔ Best model saved:", best_stats, end=print_end)
+                    #save excel to the current moment
                     if self.save_xlsx:
                         self.do_save_xlsx()
 
 
 
-            #Salva a rede a cada
+            #Saves the network every
             if save_every is not None and (epoch + 1) % save_every == 0:
                 last_model_file_dir = self.model_file_dir.replace('.pth','-last.pth')
                 self.save_model(last_model_file_dir, epoch, best_score)
@@ -795,15 +795,15 @@ class Trainer:
 
 
 
-        #calcula o FPS do modelo
+        #calculates the FPS of the model
         self.info['GPU_FPS'], self.info['GPU_time_per_image'], self.info['CPU_FPS'], self.info['CPU_time_per_image'] = measure_inference_speed(self.model, 
                                                                                                                                                val_loader, 
                                                                                                                                                measure_cpu_speed=measure_cpu_speed)
 
         print("")
         if best_stats:
-            print("Melhor modelo:\r\n", best_stats)
-        print("Ultimo modelo:\r\n", last_stats + '\r\n GPU_FPS:',self.info['GPU_FPS'], ' CPU_FPS:',self.info['CPU_FPS'])
+            print("Best model:\r\n", best_stats)
+        print("Latest model:\r\n", last_stats + '\r\n GPU_FPS:',self.info['GPU_FPS'], ' CPU_FPS:',self.info['CPU_FPS'])
 
 
         if self.model_file_dir is not None:
@@ -812,7 +812,7 @@ class Trainer:
 
 
         if self.save_xlsx:
-            # Escreve o arquivo excel com o history
+            # Write the excel file with history
             self.do_save_xlsx()
 
         #beep win
@@ -831,30 +831,30 @@ if __name__ == '__main__':
 
 def check_masks_for_ce_loss(masks, num_classes=3, ignore_index=255):
     """
-    Verifica se há valores inválidos em uma máscara antes do CrossEntropyLoss.
+    Checks a mask for invalid values ​​before CrossEntropyLoss.
 
     masks: tensor [B,H,W] ou [B,1,H,W]
     """
     if masks.ndim == 4:
-        masks = masks.squeeze(1)  # [B,H,W]
+        masks = masks.squeeze(1)  # [b,h,w]
 
     invalid_mask = (masks < 0) | ((masks >= num_classes) & (masks != ignore_index))
     has_invalid = invalid_mask.any()
 
     if has_invalid:
-        print("Encontrados valores inválidos nas máscaras!")
+        print("Invalid values ​​found in masks!")
         for b in range(masks.size(0)):
             unique_vals = torch.unique(masks[b])
             if ((unique_vals >= num_classes) & (unique_vals != ignore_index)).any() or (unique_vals < 0).any():
-                print(f"Batch {b}: valores únicos -> {unique_vals.tolist()}")
+                print(f"Batch {b}: unique values -> {unique_vals.tolist()}")
     else:
-        print("Todas as máscaras válidas para CrossEntropyLoss.")
+        print("All masks valid for CrossEntropyLoss.")
 
 
 class MulticlassTrainer(Trainer):
 
     def __init__(self, num_classes, model_filename=None, model_dir=None, info={}, save_xlsx=False, loss_function='CrossEntropyLoss'):
-        #Corrige a loss_function se necessario
+        #Correct the loss_function if necessary
         if loss_function == 'BCEWithLogitsLoss':
             loss_function = 'CrossEntropyLoss'
 

@@ -27,7 +27,7 @@ class ImageComparisonGenerator:
         else:
             return model(images)
 
-    # Função auxiliar dentro da classe
+    # Helper function within the class
     def _get_sample_by_index(self, dataloader, idx):
         count = 0
         for imgs, masks in dataloader:
@@ -39,7 +39,7 @@ class ImageComparisonGenerator:
         raise IndexError(f"Index {idx} out of range for dataset of length {len(dataloader.dataset)}")
 
 
-    # Funções auxiliares
+    # Auxiliary functions
     def _prepare_mask_vis(self, mask, num_classes=1, ignore_val=255):
         ignore_mask = (mask == ignore_val)
         mask_vis = mask.copy()
@@ -125,11 +125,11 @@ class ImageComparisonGenerator:
                 imgs = imgs.to(device)
                 masks = masks.to(device)
 
-                # Forward nos dois modelos
+                # Forward in both models
                 outA = modelA(imgs)
                 outB = modelB(imgs)
 
-                # Se forem logits, aplica softmax ou sigmoid
+                # If they are logits, apply softmax or sigmoid
                 if num_classes == 1:
                     predA = torch.sigmoid(outA) > 0.5
                     predB = torch.sigmoid(outB) > 0.5
@@ -137,7 +137,7 @@ class ImageComparisonGenerator:
                     predA = torch.argmax(F.softmax(outA, dim=1), dim=1)
                     predB = torch.argmax(F.softmax(outB, dim=1), dim=1)
 
-                # Calcular Dice por imagem
+                # Calculate Dice by Image
                 for i in range(imgs.size(0)):
                     diceA = self._dice_score(predA[i], masks[i], num_classes)
                     diceB = self._dice_score(predB[i], masks[i], num_classes)
@@ -145,7 +145,7 @@ class ImageComparisonGenerator:
                     mIoUB = self._miou_score(predB[i], masks[i], num_classes)
 
                     if diceA > diceB:
-                        # Preparar imagens para visualização
+                        # Prepare images for viewing
                         img_disp = self._prepare_image_disp(imgs[i].cpu())
 
 
@@ -169,12 +169,12 @@ class ImageComparisonGenerator:
                         red_pixels = np.all(predB_disp == np.array([1.0, 0.0, 0.0], dtype=np.float32), axis=2)
                         num_red_pixelsB = np.sum(red_pixels)
 
-                        # Mostrar em uma figura 2x2
+                        # Show in a 2x2 figure
                         fig, axs = plt.subplots(2, 2, figsize=(8, 8))
-                        axs[0,0].imshow(img_disp); axs[0,0].set_title("Imagem")
+                        axs[0,0].imshow(img_disp); axs[0,0].set_title("Image")
                         axs[0,1].imshow(gt_disp); axs[0,1].set_title("GT")
-                        axs[1,0].imshow(predA_disp); axs[1,0].set_title(f"Modelo A Dice={diceA:.3f} mIoU={mIoUA:.3f} \n Red:{num_red_pixelsA}")
-                        axs[1,1].imshow(predB_disp); axs[1,1].set_title(f"Modelo B Dice={diceB:.3f} mIoU={mIoUB:.3f} \n Red:{num_red_pixelsB}")
+                        axs[1,0].imshow(predA_disp); axs[1,0].set_title(f"Model A Dice={diceA:.3f} mIoU={mIoUA:.3f} \n Red:{num_red_pixelsA}")
+                        axs[1,1].imshow(predB_disp); axs[1,1].set_title(f"Model B Dice={diceB:.3f} mIoU={mIoUB:.3f} \n Red:{num_red_pixelsB}")
 
 
 
@@ -190,7 +190,7 @@ class ImageComparisonGenerator:
         pred = pred.view(-1)
         target = target.view(-1)
 
-        # Máscara de ignorados
+        # Ignored mask
         valid_mask = (target != ignore_val)
 
         iou_total = 0.0
@@ -202,7 +202,7 @@ class ImageComparisonGenerator:
             union = (pred_c | target_c).sum().item()
 
             if union == 0:
-                iou = 1.0  # se a classe não está presente nem na GT nem na predição
+                iou = 1.0  # if the class is not present in either the GT or the prediction
             else:
                 iou = inter / (union + eps)
 
@@ -213,7 +213,7 @@ class ImageComparisonGenerator:
 
     def _dice_score(self, pred, target, num_classes=1, eps=1e-6):
         """
-        Calcula Dice Score entre predição e ground truth.
+        Calculates Dice Score between prediction and ground truth.
         """
         if num_classes == 1:
             pred = pred.view(-1).float()
@@ -230,7 +230,7 @@ class ImageComparisonGenerator:
             return dice_total / num_classes
 
 
-    # Funções de saída
+    # Output Functions
     def save_output_row(self, sample_loader, samples=[0],
                         num_classes=1, do_diff=True, invert_diff_colors=False,
                         do_save=False):
@@ -286,7 +286,7 @@ class ImageComparisonGenerator:
         if self.model2 is not None:
             self.model2.eval()
 
-        fig = plt.figure(figsize=(10,10))  # maior largura para 2 modelos
+        fig = plt.figure(figsize=(10,10))  # greater width for 2 models
 
         with torch.no_grad():
             for idx, sample_idx in enumerate(samples):
@@ -296,14 +296,14 @@ class ImageComparisonGenerator:
 
                 mask_vis, ignore_mask = self._prepare_mask_vis(mask_np, num_classes)
 
-                # Predição do modelo 1
+                # Model 1 Prediction
                 pred1_vis = self._prepare_prediction_vis(
                     self.get_model_output(img, model=self.model), 
                     mask_np, num_classes, do_diff, invert_diff_colors, ignore_mask
                 )
                 img_disp = self._prepare_image_disp(img)
 
-                # Predição do modelo 2, se existir
+                # Model 2 prediction, if it exists
                 if self.model2 is not None:
                     img2 = img.to(device2)
                     pred2_vis = self._prepare_prediction_vis(
@@ -316,7 +316,7 @@ class ImageComparisonGenerator:
                 vertical_gap = 0.13
                 height = (1 - vertical_gap) / 2
 
-                # Estrutura das posições: (linha, coluna, imagem, título)
+                # Position structure: (row, column, image, title)
                 positions = [
                     (0,0,img_disp,"Image"),
                     (0,1,mask_vis,"Ground Truth"),
@@ -349,7 +349,7 @@ class ImageComparisonGenerator:
 
 
 
-# In[8]:
+# In[ ]:
 
 
 class ImageComparisonGenMobileNetV2(ImageComparisonGenerator):
@@ -360,7 +360,7 @@ def load_model(model, model_file_name):
     checkpoint = torch.load(model_file_name, map_location='cpu')
     state_dict = checkpoint['model_state_dict']
 
-    # Filtra apenas as chaves existentes no modelo
+    # Filters only existing keys in the model
     model_keys = set(model.state_dict().keys())
     filtered_state_dict = {k: v for k, v in state_dict.items() if k in model_keys}
 
@@ -414,12 +414,6 @@ if __name__ == '__main__':
     # model.load_state_dict(checkpoint['model_state_dict'])
     # icg = ImageComparisonGenerator(model)
     # icg.save_output_row(val_loader, samples=[3,9], num_classes=num_classes, do_save='lars-ulite.eps')
-
-
-
-
-
-# In[ ]:
 
 
 

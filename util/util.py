@@ -14,7 +14,7 @@ import re
 def show_dataset_prev(train_loader, test_loader, val_loader=None, num_images=3, num_classes=1):
     images_shown = 0
 
-    # Cria um iterador para o val_loader se for fornecido
+    # Creates an iterator for val_loader if provided
     val_iter = iter(val_loader) if val_loader is not None else None
 
     for (images_train, masks_train), (images_test, masks_test) in zip(train_loader, test_loader):
@@ -22,7 +22,7 @@ def show_dataset_prev(train_loader, test_loader, val_loader=None, num_images=3, 
             try:
                 images_val, masks_val = next(val_iter)
             except StopIteration:
-                break  # Encerra se o val_loader acabar
+                break  # Terminate if val_loader runs out
 
         for i in range(images_train.size(0)):
             if images_shown >= num_images:
@@ -41,25 +41,25 @@ def show_dataset_prev(train_loader, test_loader, val_loader=None, num_images=3, 
             if val_iter:
                 img_val, mask_val = process_image_mask(images_val[i], masks_val[i])
 
-            # Define número de colunas com base no val_loader
+            # Sets number of columns based on val_loader
             n_cols = 6 if val_iter else 4
             fig, axs = plt.subplots(1, n_cols, figsize=(n_cols * 2.5, 4))
 
             axs[0].imshow(img_train)
-            axs[0].set_title("Imagem Treino")
+            axs[0].set_title("Training Image")
             axs[1].imshow(mask_train, cmap='viridis', vmin=0, vmax=num_classes)
-            axs[1].set_title("Máscara Treino")
+            axs[1].set_title("Training Mask")
 
             axs[2].imshow(img_test)
-            axs[2].set_title("Imagem Teste")
+            axs[2].set_title("Test Image")
             axs[3].imshow(mask_test, cmap='viridis', vmin=0, vmax=num_classes)
-            axs[3].set_title("Máscara Teste")
+            axs[3].set_title("Test Mask")
 
             if val_iter:
                 axs[4].imshow(img_val)
-                axs[4].set_title("Imagem Val")
+                axs[4].set_title("Val Image")
                 axs[5].imshow(mask_val, cmap='viridis', vmin=0, vmax=num_classes)
-                axs[5].set_title("Máscara Val")
+                axs[5].set_title("Val Mask")
 
             for ax in axs:
                 ax.axis('off')
@@ -75,25 +75,25 @@ def show_dataset_prev(train_loader, test_loader, val_loader=None, num_images=3, 
     
 def verificar_mascara_multiclasse(mascara, num_classes):
     if len(mascara.shape) != 2:
-        print("Formato inválido: a máscara deve ser [H, W]")
+        print("Invalid format: the mask must be [H, W]")
     else:
-        print("Formato ok")
+        print("Format ok")
 
     valores = np.unique(mascara)
     if not np.all(np.equal(valores, valores.astype(int))):
-        print("A máscara contém valores não inteiros")
+        print("Mask contains non-integer values")
     else:
-        print(f"Valores únicos: {valores}")
+        print(f"Unique values: {valores}")
 
     if mascara.dtype not in [np.uint8, np.int32, np.int64]:
-        print(f"Tipo inválido: {mascara.dtype}")
+        print(f"Invalid type: {mascara.dtype}")
     else:
-        print("Tipo de dado ok")
+        print("Data type ok")
 
     if valores.min() < 0 or valores.max() >= num_classes:
-        print(f"Valores fora do intervalo esperado [0, {num_classes - 1}]")
+        print(f"Values outside the expected range [0, {num_classes - 1}]")
     else:
-        print("Intervalo de valores está correto")
+        print("Value range is correct")
 
 
 def beep():
@@ -116,7 +116,7 @@ def clear_gpu():
 def measure_inference_speed(model, test_loader, measure_cpu_speed=True):
     model.eval()
 
-    # Pega apenas o primeiro batch do test_loader
+    # Get only the first batch from test_loader
     inputs, _ = next(iter(test_loader))
 
     results = {}
@@ -133,7 +133,7 @@ def measure_inference_speed(model, test_loader, measure_cpu_speed=True):
         model.to(device)
         inputs_device = inputs.to(device)
 
-        # Warm-up
+        # Heating
         with torch.no_grad():
             for _ in range(5):
                 _ = model(inputs_device)
@@ -142,7 +142,7 @@ def measure_inference_speed(model, test_loader, measure_cpu_speed=True):
             torch.cuda.synchronize()
         start_time = time.time()
 
-        # Mede o tempo de forward puro (100 execuções do mesmo batch)
+        # Measures pure routing time (100 executions of the same batch)
         steps = 1
         with torch.no_grad():
             for _ in range(steps):
@@ -165,84 +165,84 @@ def measure_inference_speed(model, test_loader, measure_cpu_speed=True):
     return fps_gpu, time_per_image_gpu, fps_cpu, time_per_image_cpu
 
 
-def compile_xls_best_results(input_dir, output_file="resultado.xlsx"):
+def compile_xls_best_results(input_dir, output_file="result.xlsx"):
     linhas = []
     modelo_atual = None
-    bloco_linhas = []
+    lines_block = []
 
     files = os.listdir(input_dir)
     files.sort()
 
-    def adicionar_bloco(linhas, bloco_linhas, modelo):
+    def add_block(linhas, bloco_linhas, modelo):
         if not bloco_linhas:
             return
-        # Converte bloco em DataFrame
+        # Convert block to DataFrame
         df_bloco = pd.DataFrame(bloco_linhas)
 
-        # Calcula médias (apenas para colunas Dice e FPS se existirem)
-        media_row = {"arquivo": f"{modelo}-MÉDIA"}
+        # Calculates averages (only for Data and FPS columns if they exist)
+        avg_row = {"file": f"{modelo}-AVERAGE"}
         if "dice" in df_bloco.columns:
-            media_row["dice"] = df_bloco["dice"].mean()
+            avg_row["dice"] = df_bloco["dice"].mean()
         if "FPS" in df_bloco.columns:
-            media_row["FPS"] = df_bloco["FPS"].mean()
+            avg_row["FPS"] = df_bloco["FPS"].mean()
 
-        # Adiciona bloco + linha de média + linha em branco
+        # Add block + midline + blank line
         linhas.extend(df_bloco.to_dict("records"))
-        linhas.append(media_row)   # 1ª linha em branco com média
-        linhas.append({})          # 2ª linha em branco
+        linhas.append(avg_row)   #1st blank line with average
+        linhas.append({})          # 2nd blank line
 
     for file in files:
         if file.endswith(".xlsx"):
             file_path = os.path.join(input_dir, file)
 
             try:
-                # Nome base do modelo (tudo antes do último "-número")
+                # Template base name (everything before the last "-number")
                 match = re.match(r"(.+)-\d+$", file.replace("-epochs300.xlsx", ""))
                 if match:
                     modelo = match.group(1)
                 else:
                     modelo = file.replace(".xlsx", "")
 
-                # Lê a aba val_history
+                # But val_history tab
                 val_history = pd.read_excel(file_path, sheet_name="val_history")
 
-                # Pega a linha com maior valor na coluna "dice"
+                # Gets the row with the highest value in the "data" column
                 best_row = val_history.loc[val_history["dice"].idxmax()].copy()
 
-                # Lê a aba model_info
+                # But model_info tab
                 model_info = pd.read_excel(file_path, sheet_name="model_info")
 
-                # Procura a coluna FPS
+                # Look for the FPS column
                 fps_value = model_info["FPS"].iloc[0] if "FPS" in model_info.columns else None
 
-                # Converte a linha em Series e adiciona FPS
+                # Converts the line to Series and adds FPS
                 best_row["FPS"] = fps_value
-                best_row = pd.Series({"arquivo": file.replace(".xlsx", ""), **best_row.to_dict()})
+                best_row = pd.Series({"file": file.replace(".xlsx", ""), **best_row.to_dict()})
 
-                # Se mudou de modelo, fecha o bloco anterior
+                # If you change models, close the previous block
                 if modelo_atual is not None and modelo != modelo_atual:
-                    adicionar_bloco(linhas, bloco_linhas, modelo_atual)
-                    bloco_linhas = []
+                    add_block(linhas, lines_block, modelo_atual)
+                    lines_block = []
 
-                # Atualiza modelo atual
+                # Update current model
                 modelo_atual = modelo
 
-                # Adiciona linha ao bloco
-                bloco_linhas.append(best_row)
+                #Add line to block
+                lines_block.append(best_row)
 
             except Exception as e:
-                print(f"Erro ao processar {file}: {e}")
+                print(f"Error processing {file}: {e}")
 
-    # Finaliza último bloco
-    if bloco_linhas:
-        adicionar_bloco(linhas, bloco_linhas, modelo_atual)
+    # Finish last block
+    if lines_block:
+        add_block(linhas, lines_block, modelo_atual)
 
-    # Junta todas as linhas em um DataFrame
+    # Joins all rows into a DataFrame
     df_final = pd.DataFrame(linhas)
 
-    # Salva em Excel
+    # Saves to Excel
     df_final.to_excel(output_file, index=False)
-    print(f"Arquivo salvo em: {output_file}")
+    print(f"File saved in: {output_file}")
 
 
 
@@ -278,7 +278,7 @@ def run_profiler(model, data_loader, model_name='model', num_steps=1):
 
                 with record_function("model_inference"):
                     _ = model(images)
-                #torch.cuda.synchronize()
+                #Torch.cuda.synchronize()
 
     print(f"Profiling results saved to: {logdir}")
     print(prof.key_averages().table(sort_by="cuda_time_total", row_limit=10))
@@ -289,5 +289,5 @@ def get_flops_gflops(model, input_size=(1, 3, 224, 224), device='cuda'):
     model = model.to(device)
     flops, params = profile(model, inputs=(dummy_input,), verbose=False)
     
-    gflops = flops / 1e9  # converte para GFLOPs
+    gflops = flops / 1e9  # converts to GFLOPs
     return gflops

@@ -8,20 +8,13 @@ import torch
 import torch.nn as nn
 from enum import Enum
 
-from util import count_trainable_parameters
 #jupyter nbconvert --to script UMergeNet.ipynb
 
-
-# In[ ]:
-
-
-from enum import Enum
-#MELHOR VERSAO ATE O MOMENTO (15/10 12:00)
 class AdjustChannels(nn.Module):
     """
-    Ajusta o número de canais de um tensor:
-    - Se in_ch < out_ch: repete canais até atingir out_ch
-    - Se in_ch > out_ch: mantém (out_ch//2) canais e reduz o restante com uma conv1x1 para (out_ch - keep)
+    Adjusts the number of channels of a tensor:
+    -If in_ch < out_ch: repeat channels until reaching out_ch
+    -If in_ch > out_ch: keep (out_ch//2) channels and reduce the rest with a conv1x1 to (out_ch -keep)
     """
     def __init__(self, in_ch, out_ch):
         super().__init__()
@@ -42,7 +35,7 @@ class AdjustChannels(nn.Module):
             return x
 
         elif c < self.out_ch:
-            repeat_factor = -(-self.out_ch // c)  # ceil(out_ch / c)
+            repeat_factor = -(-self.out_ch // c)  # ceil(out_ch /c)
             return x.repeat(1, repeat_factor, 1, 1)[:, :self.out_ch]
 
         else:  # c > out_ch
@@ -59,7 +52,7 @@ class AxialConv(nn.Module):
 
         self.groups       = groups
         self.out_channels = out_channels
-        if groups == out_channels: #DW
+        if groups == out_channels: #Dw
             self.dw_h   = nn.Conv2d(out_channels, out_channels, kernel_size=(kernel_size, 1), padding=padding, groups=groups, dilation=dilation, bias=bias)
             self.dw_w   = nn.Conv2d(out_channels, out_channels, kernel_size=(1, kernel_size), padding=padding, groups=groups, dilation=dilation, bias=bias)
         else:    
@@ -68,7 +61,7 @@ class AxialConv(nn.Module):
 
     def forward(self, x):
         if self.groups == self.out_channels:
-            # (Caso seja DepthWise)
+            # (If it is DepthWise)
             x = self.adjust(x)
             x = x + self.dw_h(x) + self.dw_w(x)
         else:
@@ -179,7 +172,7 @@ class UMergeNet(nn.Module):
         self.pool         = nn.MaxPool2d(kernel_size=2)
         self.upsample     = nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True)
 
-        # Encoder
+        # encoder
         self.enc1 = EncoderTwoLanesBlock(in_channels,  layer1,                        conv_type=conv_type)
         self.enc2 = EncoderTwoLanesBlock(layer1,       layer2, groups=encoder_groups, conv_type=conv_type)
         self.enc3 = EncoderTwoLanesBlock(layer2,       layer3, groups=encoder_groups, conv_type=conv_type)
@@ -258,62 +251,26 @@ class UMergeNet(nn.Module):
 if __name__ == '__main__':
     print("Axial")
     model = UMergeNet(in_channels=3, out_channels=1)
-    x = torch.randn(8, 3, 256, 256)
-    y = model(x)
-    print(y.shape)
-    print(count_trainable_parameters(model, format=True))
-    fps, time_per_image = measure_inference_speed_v2(model, val_loader)
-    print("FPS:",fps, "Time per image:",time_per_image)
 
     print("Axial-DW")
     model = UMergeNet(in_channels=3, out_channels=1, merger_groups='dw', encoder_groups='dw', decoder_groups='dw')
-    x = torch.randn(8, 3, 256, 256)
-    y = model(x)
-    print(y.shape)
-    print(count_trainable_parameters(model, format=True))
-    fps, time_per_image = measure_inference_speed_v2(model, val_loader)
-    print("FPS:",fps, "Time per image:",time_per_image)
 
     print("Atrous")
     model = UMergeNet(in_channels=3, out_channels=1, conv_type=ConvType.Atrous)
-    x = torch.randn(8, 3, 256, 256)
-    y = model(x)
-    print(y.shape)
-    print(count_trainable_parameters(model, format=True))
-    fps, time_per_image = measure_inference_speed_v2(model, val_loader)
-    print("FPS:",fps, "Time per image:",time_per_image)
 
     print("Atrous-DW")
     model = UMergeNet(in_channels=3, out_channels=1, conv_type=ConvType.Atrous, merger_groups='dw', encoder_groups='dw', decoder_groups='dw')
-    x = torch.randn(8, 3, 256, 256)
-    y = model(x)
-    print(y.shape)
-    print(count_trainable_parameters(model, format=True))
-    fps, time_per_image = measure_inference_speed_v2(model, val_loader)
-    print("FPS:",fps, "Time per image:",time_per_image)
 
     print("Normal")
     model = UMergeNet(in_channels=3, out_channels=1, conv_type=ConvType.Standard)
-    x = torch.randn(8, 3, 256, 256)
-    y = model(x)
-    print(y.shape)
-    print(count_trainable_parameters(model, format=True))
-    fps, time_per_image = measure_inference_speed_v2(model, val_loader)
-    print("FPS:",fps, "Time per image:",time_per_image)
 
     print("Normal-DW")
     model = UMergeNet(in_channels=3, out_channels=1, conv_type=ConvType.Standard, merger_groups='dw', encoder_groups='dw', decoder_groups='dw')
-    x = torch.randn(8, 3, 256, 256)
-    y = model(x)
-    print(y.shape)
-    print(count_trainable_parameters(model, format=True))
-    fps, time_per_image = measure_inference_speed_v2(model, val_loader)
-    print("FPS:",fps, "Time per image:",time_per_image)
 
 
-    #REFERENCIA - UMergeNetMergerMoreLayersPerLevel-2
-    #2.446.673
+    #REFERENCE -UMergeNetMergerMoreLayersPerLevel-2
+    #2,446,673
     #GFLOPS: 1.35
     # Dice: 0.9412 mIoU: 0.8891
-    # FPS: 907 Time per image: 1.101 ms
+    # FPS: 907 Time per image: 1,101 ms
 

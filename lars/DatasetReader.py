@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[3]:
+# In[1]:
 
 
 #jupyter nbconvert --to script DatasetReader.ipynb
@@ -24,22 +24,22 @@ class DatasetReader(Dataset):
         self.image_transform = image_transform
         self.mask_transform = mask_transform
 
-        # lista apenas .png e ordena para consistência
+        # list only .png and order for consistency
         self.image_files = sorted([f for f in os.listdir(image_dir) if f.endswith(".jpg")])
 
         if len(self.image_files) == 0:
-            raise ValueError(f"Não foi encontrada nenhuma imagem no diretorio: '{image_dir}'")
+            raise ValueError(f"No images found in the directory: '{image_dir}'")
 
 
-        # monta pares (img_path, mask_path) garantindo mesmo nome
+        # assembles pairs (img_path, mask_path) guaranteeing the same name
         self.pairs = []
         for img_file in self.image_files:
             img_path = os.path.join(image_dir, img_file)
-            mask_path = os.path.join(mask_dir, img_file.replace(".jpg",".png"))  # mesmo nome da imagem
+            mask_path = os.path.join(mask_dir, img_file.replace(".jpg",".png"))  # same name as image
             if os.path.exists(mask_path):
                 self.pairs.append((img_path, mask_path))
             else:
-                print(f"[Aviso] Máscara não encontrada para {mask_dir}/{img_file}")
+                print(f"[Warning] Mask not found for {mask_dir}/{img_file}")
 
     def __len__(self):
         return len(self.pairs)
@@ -54,7 +54,7 @@ class DatasetReader(Dataset):
 
         if self.mask_transform:
             #mask_np = np.array(mask)
-            #mask_np = (mask_np > 0).astype(np.uint8) * 255 #para permitir 3 classes nao binarizamos
+            #mask_np = (mask_np > 0).astype(np.uint8) *255 #to allow 3 classes we do not binarize
             #mask = Image.fromarray(mask_np)
             mask = self.mask_transform(mask)
 
@@ -66,7 +66,7 @@ def get_datasets(dataset_dir=config.dataset_path,
                  batch_size=config.batch_size,
                  num_workers=4):
 
-    # Transformações
+    # Transformations
     image_transform = transforms.Compose([
         transforms.Resize((resolution, resolution)),
         transforms.ToTensor(),
@@ -76,8 +76,8 @@ def get_datasets(dataset_dir=config.dataset_path,
     mask_transform = transforms.Compose([
         transforms.Resize((resolution, resolution), interpolation=Image.NEAREST),
 
-        #permitir 3 classes
-        #transforms.ToTensor(),
+        #allow 3 classes
+        #Transforms.to tensor(),
         #transforms.Lambda(lambda x: (x > 0.5).float())
         transforms.Lambda(lambda x: torch.from_numpy(np.array(x, dtype=np.int64)).unsqueeze(0)) 
     ])
@@ -103,7 +103,7 @@ def get_datasets(dataset_dir=config.dataset_path,
         mask_transform=mask_transform
     )
 
-    # DataLoaders
+    # Data loaders
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True,
                               num_workers=num_workers, pin_memory=True, drop_last=True)
     val_loader   = DataLoader(val_dataset, batch_size=batch_size, shuffle=False,

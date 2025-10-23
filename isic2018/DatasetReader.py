@@ -1,14 +1,10 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[ ]:
+# In[1]:
 
 
 #jupyter nbconvert --to script DatasetReader.ipynb
-
-
-# In[ ]:
-
 
 import os
 import config
@@ -27,18 +23,18 @@ class DatasetReader(Dataset):
         self.image_transform = image_transform
         self.mask_transform = mask_transform
 
-        # lista apenas .png e ordena para consistência
+        # list only .png and order for consistency
         self.image_files = sorted([f for f in os.listdir(image_dir) if f.endswith(".png")])
 
-        # monta pares (img_path, mask_path) garantindo mesmo nome
+        # assembles pairs (img_path, mask_path) guaranteeing the same name
         self.pairs = []
         for img_file in self.image_files:
             img_path = os.path.join(image_dir, img_file)
-            mask_path = os.path.join(mask_dir, img_file)  # mesmo nome da imagem
+            mask_path = os.path.join(mask_dir, img_file)  # same name as image
             if os.path.exists(mask_path):
                 self.pairs.append((img_path, mask_path))
             else:
-                print(f"[Aviso] Máscara não encontrada para {img_file}")
+                print(f"[Warning] Mask not found for {mask_dir}/{img_file}")
 
     def __len__(self):
         return len(self.pairs)
@@ -65,7 +61,7 @@ def get_datasets(dataset_dir=config.dataset_path,
                  batch_size=config.batch_size,
                  num_workers=4):
 
-    # Transformações
+    # Transformations
     image_transform = transforms.Compose([
         transforms.Resize((resolution, resolution)),
         transforms.ToTensor(),
@@ -73,12 +69,11 @@ def get_datasets(dataset_dir=config.dataset_path,
     ])
 
     mask_transform = transforms.Compose([
-        transforms.Resize((resolution, resolution)),
+        transforms.Resize((resolution, resolution), interpolation=Image.NEAREST),
         transforms.ToTensor(),
         transforms.Lambda(lambda x: (x > 0.5).float())
     ])
 
-    # Novo formato YOLO
     train_dataset = DatasetReader(
         image_dir=os.path.join(dataset_dir, "images/train"),
         mask_dir=os.path.join(dataset_dir, "labels/train"),
@@ -100,7 +95,7 @@ def get_datasets(dataset_dir=config.dataset_path,
         mask_transform=mask_transform
     )
 
-    # DataLoaders
+    # Data loaders
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True,
                               num_workers=num_workers, pin_memory=True, drop_last=True)
     val_loader   = DataLoader(val_dataset, batch_size=batch_size, shuffle=False,
